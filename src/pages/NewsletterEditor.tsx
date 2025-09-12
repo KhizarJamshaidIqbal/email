@@ -193,6 +193,7 @@ const NewsletterEditor: React.FC = () => {
       autoSave.setHasUnsavedChanges(false);
       autoSave.setAutoSaveStatus('saved');
       autoSave.setLastSaveTime(new Date());
+      autoSave.updateLastSavedHash(); // Update the hash after manual save
     }
   });
   

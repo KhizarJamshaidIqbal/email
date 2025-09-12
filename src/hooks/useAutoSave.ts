@@ -23,6 +23,7 @@ interface UseAutoSaveReturn {
   setAutoSaveEnabled: (enabled: boolean) => void;
   setCurrentDraftId: (id: string | null) => void;
   detectChanges: () => void;
+  updateLastSavedHash: () => void;
 }
 
 const AUTO_SAVE_INTERVAL = 30000; // 30 seconds
@@ -67,6 +68,12 @@ export const useAutoSave = ({
     };
     return btoa(JSON.stringify(content)).slice(0, 32);
   }, [blocks, brandKit, viewMode]);
+
+  // Update last saved hash after manual save
+  const updateLastSavedHash = useCallback(() => {
+    lastContentHashRef.current = generateContentHash();
+    console.log('🔄 Updated lastSavedHash after manual save:', lastContentHashRef.current?.slice(0, 8));
+  }, [generateContentHash]);
 
   // Auto-save function
   const performAutoSave = useCallback(async () => {
@@ -179,7 +186,8 @@ export const useAutoSave = ({
     // Only set initial hash if we have no blocks (truly empty project)
     // This allows detection of blocks being added to empty projects
     if (blocks.length === 0) {
-      lastContentHashRef.current = generateContentHash();
+      const hash = btoa(JSON.stringify({ blocks, brandKit, viewMode })).slice(0, 32);
+      lastContentHashRef.current = hash;
     }
     
     if (!draftNameRef.current) {
@@ -187,7 +195,7 @@ export const useAutoSave = ({
     }
     
     console.log('🚀 Auto-save system initialized');
-  }, [generateContentHash, generateDraftName]);
+  }, [blocks, brandKit, viewMode, generateDraftName]);
 
   // Auto-detect changes when blocks, brandKit, or viewMode change
   useEffect(() => {
@@ -237,6 +245,7 @@ export const useAutoSave = ({
     setLastSaveTime,
     setAutoSaveEnabled,
     setCurrentDraftId,
-    detectChanges
+    detectChanges,
+    updateLastSavedHash
   };
 };
