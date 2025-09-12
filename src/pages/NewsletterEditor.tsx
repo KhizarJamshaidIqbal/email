@@ -182,6 +182,7 @@ const NewsletterEditor: React.FC = () => {
   const saveOps = useSaveOperations({
     createProject,
     brandKit,
+    blocks,
     hasUnsavedChanges: autoSave.hasUnsavedChanges,
     onSaveComplete: (projectId: string) => {
       setCurrentDraftId(projectId);

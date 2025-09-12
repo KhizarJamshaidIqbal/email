@@ -6,13 +6,15 @@ interface UseSaveOperationsProps {
   brandKit: BrandKit;
   hasUnsavedChanges: boolean;
   onSaveComplete: (projectId: string) => void;
+  blocks: ContentBlock[]; // Add blocks as a prop to ensure we always have current state
 }
 
 export const useSaveOperations = ({
   createProject,
   brandKit,
   hasUnsavedChanges,
-  onSaveComplete
+  onSaveComplete,
+  blocks
 }: UseSaveOperationsProps) => {
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [newsletterName, setNewsletterName] = useState('');
@@ -33,7 +35,9 @@ export const useSaveOperations = ({
     setSaveError(null);
   };
 
-  const handleSaveWithName = async (blocks: ContentBlock[]) => {
+  const handleSaveWithName = async (blocksParam?: ContentBlock[]) => {
+    // Use blocks from props (current state) or fallback to parameter
+    const currentBlocks = blocksParam || blocks;
     if (!newsletterName.trim()) {
       setSaveError('Newsletter name is required');
       return;
@@ -42,9 +46,9 @@ export const useSaveOperations = ({
     try {
       console.log('🚀 Starting manual save...', { 
         name: newsletterName.trim(), 
-        blocksCount: blocks.length,
-        blocks: blocks,
-        blockIds: blocks.map(b => b.id),
+        blocksCount: currentBlocks.length,
+        blocks: currentBlocks,
+        blockIds: currentBlocks.map(b => b.id),
         timestamp: new Date().toISOString()
       });
       setIsSaving(true);
@@ -54,7 +58,7 @@ export const useSaveOperations = ({
       const projectData = {
         name: newsletterName.trim(),
         content_data: {
-          blocks: blocks,
+          blocks: currentBlocks,
           brandKit: brandKit,
           version: '1.0'
         },
