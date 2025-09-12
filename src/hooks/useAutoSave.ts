@@ -138,11 +138,17 @@ export const useAutoSave = ({
   // Detect changes
   const detectChanges = useCallback(() => {
     const currentHash = generateContentHash();
-    const hasChanges = currentHash !== lastContentHashRef.current && blocks.length > 0;
+    
+    // For new projects, if we have blocks but no baseline hash, consider it as changes
+    const isNewProjectWithBlocks = blocks.length > 0 && !lastContentHashRef.current;
+    const hasContentChanges = currentHash !== lastContentHashRef.current;
+    const hasChanges = (hasContentChanges && blocks.length > 0) || isNewProjectWithBlocks;
     
     console.log('🔍 Change detection:', {
       currentHash: currentHash.slice(0, 8),
       lastHash: lastContentHashRef.current?.slice(0, 8),
+      isNewProjectWithBlocks,
+      hasContentChanges,
       hasChanges,
       blocksCount: blocks.length,
       currentUnsavedState: hasUnsavedChanges,
@@ -170,7 +176,11 @@ export const useAutoSave = ({
 
   // Initialize content hash and draft name
   useEffect(() => {
-    lastContentHashRef.current = generateContentHash();
+    // Only set initial hash if we have no blocks (truly empty project)
+    // This allows detection of blocks being added to empty projects
+    if (blocks.length === 0) {
+      lastContentHashRef.current = generateContentHash();
+    }
     
     if (!draftNameRef.current) {
       draftNameRef.current = generateDraftName();
