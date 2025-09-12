@@ -181,6 +181,9 @@ const NewsletterEditor: React.FC = () => {
   // Initialize save operations hook
   const saveOps = useSaveOperations({
     createProject,
+    updateProject,
+    currentDraftId,
+    currentProjectName: currentProject?.name,
     brandKit,
     blocks,
     hasUnsavedChanges: autoSave.hasUnsavedChanges,
