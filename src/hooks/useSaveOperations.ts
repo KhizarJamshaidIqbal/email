@@ -3,16 +3,24 @@ import { ContentBlock, BrandKit } from '../types/newsletter';
 
 interface UseSaveOperationsProps {
   createProject: (data: any) => Promise<any>;
+  updateProject: (id: string, data: any) => Promise<any>;
+  currentDraftId: string | null;
+  currentProjectName?: string;
   brandKit: BrandKit;
   hasUnsavedChanges: boolean;
   onSaveComplete: (projectId: string) => void;
+  blocks: ContentBlock[]; // Add blocks as a prop to ensure we always have current state
 }
 
 export const useSaveOperations = ({
   createProject,
+  updateProject,
+  currentDraftId,
+  currentProjectName,
   brandKit,
   hasUnsavedChanges,
-  onSaveComplete
+  onSaveComplete,
+  blocks
 }: UseSaveOperationsProps) => {
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [newsletterName, setNewsletterName] = useState('');
@@ -20,20 +28,94 @@ export const useSaveOperations = ({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
 
-  const saveProject = () => {
-    // Only show save dialog if there are actual unsaved changes
+  const saveProject = async () => {
+    // Only proceed if there are actual unsaved changes
     if (!hasUnsavedChanges) {
-      console.log('No unsaved changes detected, skipping save dialog');
+      console.log('No unsaved changes detected, skipping save');
       return;
     }
     
-    // Show save dialog for unsaved changes
+    // If this is an existing project, update it directly without showing name dialog
+    if (currentDraftId && currentProjectName) {
+      console.log('🔄 Updating existing project:', { currentDraftId, currentProjectName });
+      await handleUpdateExistingProject();
+      return;
+    }
+    
+    // For new projects, show save dialog to get name
+    console.log('📝 New project - showing save dialog');
     setShowSaveDialog(true);
     setNewsletterName('');
     setSaveError(null);
   };
 
-  const handleSaveWithName = async (blocks: ContentBlock[]) => {
+  const handleUpdateExistingProject = async () => {
+    if (!currentDraftId || !currentProjectName) {
+      console.error('❌ Cannot update: missing currentDraftId or currentProjectName');
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      setSaveError(null);
+      
+      // Prepare project data for updating
+      const projectData = {
+        name: currentProjectName,
+        content_data: {
+          blocks: blocks,
+          brandKit: brandKit,
+          version: '1.0'
+        },
+        status: 'draft' as const
+      };
+      
+      console.log('🔄 Updating existing project:', { 
+        id: currentDraftId,
+        name: projectData.name, 
+        blocksCount: projectData.content_data.blocks.length 
+      });
+      
+      // Update the existing project
+      const updatedProject = await updateProject(currentDraftId, projectData);
+      
+      console.log('✅ Update successful:', { 
+        projectId: updatedProject?.id, 
+        name: updatedProject?.name 
+      });
+      
+      // Notify parent component of successful save
+      onSaveComplete(currentDraftId);
+      
+      // Show success message
+      setSaveSuccess(`Newsletter "${currentProjectName}" updated successfully!`);
+      setTimeout(() => setSaveSuccess(null), 3000);
+      
+      console.log('🎉 Update workflow completed successfully');
+      
+    } catch (error) {
+      console.error('❌ Update error:', error);
+      
+      // Handle specific error types
+      if (error instanceof Error) {
+        if (error.message.includes('not authenticated')) {
+          setSaveError('Please log in to save your newsletter.');
+        } else if (error.message.includes('network') || error.message.includes('connection')) {
+          setSaveError('Network error. Please check your connection and try again.');
+        } else {
+          setSaveError(`Failed to update newsletter: ${error.message}`);
+        }
+      } else {
+        setSaveError('Failed to update newsletter. Please try again.');
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveWithName = async (blocksParam?: ContentBlock[]) => {
+    // Use blocks from props (current state) or fallback to parameter
+    const currentBlocks = blocksParam || blocks;
     if (!newsletterName.trim()) {
       setSaveError('Newsletter name is required');
       return;
@@ -42,9 +124,9 @@ export const useSaveOperations = ({
     try {
       console.log('🚀 Starting manual save...', { 
         name: newsletterName.trim(), 
-        blocksCount: blocks.length,
-        blocks: blocks,
-        blockIds: blocks.map(b => b.id),
+        blocksCount: currentBlocks.length,
+        blocks: currentBlocks,
+        blockIds: currentBlocks.map(b => b.id),
         timestamp: new Date().toISOString()
       });
       setIsSaving(true);
@@ -54,7 +136,7 @@ export const useSaveOperations = ({
       const projectData = {
         name: newsletterName.trim(),
         content_data: {
-          blocks: blocks,
+          blocks: currentBlocks,
           brandKit: brandKit,
           version: '1.0'
         },

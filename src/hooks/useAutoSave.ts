@@ -23,6 +23,7 @@ interface UseAutoSaveReturn {
   setAutoSaveEnabled: (enabled: boolean) => void;
   setCurrentDraftId: (id: string | null) => void;
   detectChanges: () => void;
+  updateLastSavedHash: () => void;
 }
 
 const AUTO_SAVE_INTERVAL = 30000; // 30 seconds
@@ -67,6 +68,12 @@ export const useAutoSave = ({
     };
     return btoa(JSON.stringify(content)).slice(0, 32);
   }, [blocks, brandKit, viewMode]);
+
+  // Update last saved hash after manual save
+  const updateLastSavedHash = useCallback(() => {
+    lastContentHashRef.current = generateContentHash();
+    console.log('🔄 Updated lastSavedHash after manual save:', lastContentHashRef.current?.slice(0, 8));
+  }, [generateContentHash]);
 
   // Auto-save function
   const performAutoSave = useCallback(async () => {
@@ -138,11 +145,17 @@ export const useAutoSave = ({
   // Detect changes
   const detectChanges = useCallback(() => {
     const currentHash = generateContentHash();
-    const hasChanges = currentHash !== lastContentHashRef.current && blocks.length > 0;
+    
+    // For new projects, if we have blocks but no baseline hash, consider it as changes
+    const isNewProjectWithBlocks = blocks.length > 0 && !lastContentHashRef.current;
+    const hasContentChanges = currentHash !== lastContentHashRef.current;
+    const hasChanges = (hasContentChanges && blocks.length > 0) || isNewProjectWithBlocks;
     
     console.log('🔍 Change detection:', {
       currentHash: currentHash.slice(0, 8),
       lastHash: lastContentHashRef.current?.slice(0, 8),
+      isNewProjectWithBlocks,
+      hasContentChanges,
       hasChanges,
       blocksCount: blocks.length,
       currentUnsavedState: hasUnsavedChanges,
@@ -170,14 +183,19 @@ export const useAutoSave = ({
 
   // Initialize content hash and draft name
   useEffect(() => {
-    lastContentHashRef.current = generateContentHash();
+    // Only set initial hash if we have no blocks (truly empty project)
+    // This allows detection of blocks being added to empty projects
+    if (blocks.length === 0) {
+      const hash = btoa(JSON.stringify({ blocks, brandKit, viewMode })).slice(0, 32);
+      lastContentHashRef.current = hash;
+    }
     
     if (!draftNameRef.current) {
       draftNameRef.current = generateDraftName();
     }
     
     console.log('🚀 Auto-save system initialized');
-  }, [generateContentHash, generateDraftName]);
+  }, [blocks, brandKit, viewMode, generateDraftName]);
 
   // Auto-detect changes when blocks, brandKit, or viewMode change
   useEffect(() => {
@@ -227,6 +245,7 @@ export const useAutoSave = ({
     setLastSaveTime,
     setAutoSaveEnabled,
     setCurrentDraftId,
-    detectChanges
+    detectChanges,
+    updateLastSavedHash
   };
 };

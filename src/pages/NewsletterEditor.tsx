@@ -181,7 +181,11 @@ const NewsletterEditor: React.FC = () => {
   // Initialize save operations hook
   const saveOps = useSaveOperations({
     createProject,
+    updateProject,
+    currentDraftId,
+    currentProjectName: currentProject?.name,
     brandKit,
+    blocks,
     hasUnsavedChanges: autoSave.hasUnsavedChanges,
     onSaveComplete: (projectId: string) => {
       setCurrentDraftId(projectId);
@@ -189,6 +193,7 @@ const NewsletterEditor: React.FC = () => {
       autoSave.setHasUnsavedChanges(false);
       autoSave.setAutoSaveStatus('saved');
       autoSave.setLastSaveTime(new Date());
+      autoSave.updateLastSavedHash(); // Update the hash after manual save
     }
   });
   
